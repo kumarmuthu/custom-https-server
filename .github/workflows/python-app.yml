@@ -7,7 +7,7 @@ on:
   push:
    branches: [ "main" ]
   pull_request:
-  #  branches: [ "main" ]
+   branches: [ "main" ]
   schedule:
     - cron: "0 9 1 * *"
  
@@ -68,12 +68,17 @@ jobs:
           python3 custom_https_server.py --path . --port 8080 --bind 127.0.0.1 --mode read --user admin --pass password > /tmp/server.log 2>&1 &
           SERVER_PID=$!
           echo "Server PID: $SERVER_PID"
-          echo "Waiting 20 seconds for SSL cert generation and server startup..."
-          sleep 20
+          echo "Waiting 5 seconds before checking logs..."
+          sleep 5
+          echo "=== Server logs (first 50 lines) ==="
+          head -50 /tmp/server.log
+          echo ""
+          echo "Waiting 15 more seconds for SSL cert generation..."
+          sleep 15
           echo "Testing HTTPS connection on port 8080..."
           python3 ../test_https.py 8080
           EXIT_CODE=$?
-          echo "=== Server logs ==="
+          echo "=== Full Server logs ==="
           cat /tmp/server.log
           kill $SERVER_PID 2>/dev/null || true
           exit $EXIT_CODE
