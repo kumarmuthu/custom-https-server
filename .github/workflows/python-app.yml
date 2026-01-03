@@ -5,9 +5,13 @@
 name: custom-https-server CI
 on:
   workflow_dispatch:
+  push:
+   branches: [ "main" ]
+  pull_request:
+   branches: [ "main" ]
   schedule:
     - cron: "0 9 1 * *"
-
+ 
 jobs:
   test-server:
     runs-on: ubuntu-latest
@@ -25,7 +29,7 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install psutil
       
-      - name: Create test script
+      - name: Create HTTPS test script
         run: |
           echo '#!/usr/bin/env python3' > test_https.py
           echo 'import socket' >> test_https.py
@@ -37,13 +41,11 @@ jobs:
           echo '        context = ssl.create_default_context()' >> test_https.py
           echo '        context.check_hostname = False' >> test_https.py
           echo '        context.verify_mode = ssl.CERT_NONE' >> test_https.py
-          echo '        ' >> test_https.py
           echo '        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)' >> test_https.py
           echo '        sock.settimeout(5)' >> test_https.py
-          echo '        ' >> test_https.py
           echo '        with context.wrap_socket(sock, server_hostname="localhost") as ssock:' >> test_https.py
           echo '            ssock.connect(("127.0.0.1", port))' >> test_https.py
-          echo '            print(f"✅ Connected to server on port {port}")' >> test_https.py
+          echo '            print(f"✅ Connected to HTTPS server on port {port}")' >> test_https.py
           echo '            return True' >> test_https.py
           echo '    except Exception as e:' >> test_https.py
           echo '        print(f"❌ Failed to connect to port {port}: {e}")' >> test_https.py
@@ -54,63 +56,29 @@ jobs:
           echo '    success = test_server(port)' >> test_https.py
           echo '    sys.exit(0 if success else 1)' >> test_https.py
       
-      - name: Test HTTPS server on port 8080
+      - name: Run server with --path . on port 8080
         working-directory: ./custom-https-server
         run: |
-          echo "Starting server on port 8080..."
+          echo "Launching server with --path . on port 8080"
           python3 custom_https_server.py --path . --port 8080 > /tmp/server.log 2>&1 &
           SERVER_PID=$!
-          echo "Server PID: $SERVER_PID"
-          
-          echo "Waiting 15 seconds for server startup..."
           sleep 15
-          
-          echo "Checking if server is running..."
-          if ps -p $SERVER_PID > /dev/null; then
-            echo "✅ Server process is running"
-          else
-            echo "❌ Server process died"
-            echo "=== Server logs ==="
-            cat /tmp/server.log
-            exit 1
-          fi
-          
-          echo "Testing HTTPS connection..."
+          echo "Testing HTTPS connection on port 8080..."
           python3 ../test_https.py 8080
-          EXIT_CODE=$?
-          
-          echo "=== Server logs ==="
-          cat /tmp/server.log
-          
           kill $SERVER_PID 2>/dev/null || true
-          exit $EXIT_CODE
+        shell: bash
       
-      - name: Test HTTPS server on port 8081
+      - name: Run server with --path /tmp on port 8081
+        working-directory: ./custom-https-server
         run: |
-          echo "Starting server on port 8081..."
-          python3 ./custom-https-server/custom_https_server.py --path /tmp --port 8081 > /tmp/server.log 2>&1 &
+          echo "Creating dummy file in /tmp"
+          echo "Hello from /tmp" > /tmp/test.txt
+          echo "Launching server with --path /tmp on port 8081"
+          python3 custom_https_server.py --path /tmp --port 8081 > /tmp/server.log 2>&1 &
           SERVER_PID=$!
-          echo "Server PID: $SERVER_PID"
-          
-          echo "Waiting 15 seconds for server startup..."
           sleep 15
-          
-          echo "Checking if server is running..."
-          if ps -p $SERVER_PID > /dev/null; then
-            echo "✅ Server process is running"
-          else
-            echo "❌ Server process died"
-            echo "=== Server logs ==="
-            cat /tmp/server.log
-            exit 1
-          fi
-          
-          echo "Testing HTTPS connection..."
-          python3 test_https.py 8081
-          EXIT_CODE=$?
-          
-          echo "=== Server logs ==="
-          cat /tmp/server.log
-          
+          echo "Testing HTTPS connection on port 8081..."
+          python3 ../test_https.py 8081
           kill $SERVER_PID 2>/dev/null || true
-          exit $EXIT_CODE
+        shell: bash
+        
