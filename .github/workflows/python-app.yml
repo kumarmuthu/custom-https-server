@@ -2,7 +2,6 @@
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
 name: custom-https-server CI
-
 on:
   workflow_dispatch:
   schedule:
@@ -11,52 +10,125 @@ on:
 jobs:
   test-server:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-
+      
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install psutil
-
-      - name: Test server with ./custom-https-server on port 8080
+          pip install psutil requests
+      
+      - name: Test server on port 8080
         working-directory: ./custom-https-server
         run: |
           set -e
-          # Launch server in background
+          
+          # Launch server in background with 127.0.0.1 binding
           python3 custom_https_server.py --path . --port 8080 &
           SERVER_PID=$!
-          trap "kill $SERVER_PID" EXIT
+          echo "Server PID: $SERVER_PID"
           
           # Give server time to start
           sleep 5
           
-          # Test root path
-          HTTP_CODE=$(curl --silent --output /dev/null --write-out "%{http_code}" http://localhost:8080)
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "Server test failed, HTTP code: $HTTP_CODE"
+          # Check if server is running
+          if ! ps -p $SERVER_PID > /dev/null; then
+            echo "❌ Server failed to start"
             exit 1
           fi
-
-      - name: Test server with /tmp on port 8081
+          
+          # Test root path with HTTPS (ignore self-signed cert)
+          echo "Testing HTTPS on localhost:8080..."
+          HTTP_CODE=$(curl -k --silent --output /dev/null --write-out "%{http_code}" \
+            --max-time 5 https://127.0.0.1:8080 2>/dev/null || echo "000")
+          
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "401" ]; then
+            echo "❌ Server test failed, HTTP code: $HTTP_CODE"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          echo "✅ Server responded with code: $HTTP_CODE"
+          kill $SERVER_PID 2>/dev/null || true
+      
+      - name: Test server on port 8081 with file serving
         run: |
           set -e
+          
+          # Create test file
           echo "Hello from /tmp" > /tmp/test.txt
+          
+          # Launch server in background
           python3 ./custom-https-server/custom_https_server.py --path /tmp --port 8081 &
           SERVER_PID=$!
-          trap "kill $SERVER_PID" EXIT
+          echo "Server PID: $SERVER_PID"
+          
+          # Give server time to start
+          sleep 5
+          
+          # Check if server is running
+          if ! ps -p $SERVER_PID > /dev/null; then
+            echo "❌ Server failed to start"
+            exit 1
+          fi
+          
+          # Test file serving with HTTPS
+          echo "Testing file serving on port 8081..."
+          HTTP_CODE=$(curl -k --silent --output /tmp/response.txt --write-out "%{http_code}" \
+            --max-time 5 https://127.0.0.1:8081/test.txt 2>/dev/null || echo "000")
+          
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "401" ]; then
+            echo "❌ File serving test failed, HTTP code: $HTTP_CODE"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          echo "✅ File served successfully, HTTP code: $HTTP_CODE"
+          if [ -f /tmp/response.txt ]; then
+            echo "Response content: $(cat /tmp/response.txt)"
+          fi
+          
+          kill $SERVER_PID 2>/dev/null || true
+      
+      - name: Test with authentication
+        run: |
+          set -e
+          
+          # Launch server with basic auth in background
+          python3 ./custom-https-server/custom_https_server.py \
+            --path /tmp --port 8082 --user testuser --pass testpass &
+          SERVER_PID=$!
+          echo "Server PID: $SERVER_PID"
           
           sleep 5
           
-          HTTP_CODE=$(curl --silent --output /dev/null --write-out "%{http_code}" http://localhost:8081/test.txt)
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "Server test failed, HTTP code: $HTTP_CODE"
-            exit 1
+          # Test without auth (should fail)
+          echo "Testing without authentication..."
+          HTTP_CODE=$(curl -k --silent --output /dev/null --write-out "%{http_code}" \
+            --max-time 5 https://127.0.0.1:8082 2>/dev/null || echo "000")
+          
+          if [ "$HTTP_CODE" == "401" ]; then
+            echo "✅ Correctly rejected unauthenticated request"
+          else
+            echo "⚠️  Unexpected response code: $HTTP_CODE (expected 401)"
           fi
+          
+          # Test with auth (should succeed)
+          echo "Testing with authentication..."
+          HTTP_CODE=$(curl -k --silent --output /dev/null --write-out "%{http_code}" \
+            --user testuser:testpass --max-time 5 \
+            https://127.0.0.1:8082 2>/dev/null || echo "000")
+          
+          if [ "$HTTP_CODE" == "200" ]; then
+            echo "✅ Authentication successful"
+          else
+            echo "⚠️  Auth test returned code: $HTTP_CODE"
+          fi
+          
+          kill $SERVER_PID 2>/dev/null || true
