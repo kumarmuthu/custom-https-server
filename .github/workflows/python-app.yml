@@ -19,6 +19,11 @@ jobs:
         with:
           python-version: '3.x'
       
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install psutil
+      
       - name: Create test script
         run: |
           echo '#!/usr/bin/env python3' > test_https.py
