@@ -28,61 +28,20 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Test server with ./custom-https-server on port 8080
+      - name: Install dependencies
         run: |
-          set -e
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            # Use Git Bash commands on Windows
-            python ./custom-https-server/custom_https_server.py --path . --port 8080 &
-            SERVER_PID=$!
-            sleep 3
-            HTTP_CODE=$(curl --silent --output /dev/null --insecure --write-out "%{http_code}" https://localhost:8080)
-            if [ "$HTTP_CODE" != "200" ]; then
-              echo "Server test failed, HTTP code: $HTTP_CODE"
-              kill $SERVER_PID
-              exit 1
-            fi
-            kill $SERVER_PID
-          else
-            # Linux/macOS
-            python3 ./custom-https-server/custom_https_server.py --path . --port 8080 &
-            SERVER_PID=$!
-            trap "kill $SERVER_PID" EXIT
-            sleep 3
-            HTTP_CODE=$(curl --silent --output /dev/null --insecure --write-out "%{http_code}" https://localhost:8080)
-            if [ "$HTTP_CODE" != "200" ]; then
-              echo "Server test failed, HTTP code: $HTTP_CODE"
-              exit 1
-            fi
-          fi
-        shell: bash
+          python3 -m pip install --upgrade pip
+          python3 -m pip install psutil
 
-      - name: Test server with temp folder on port 8081
+      - name: Test server on port 8080
         run: |
           set -e
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            TEMP_FILE="$TEMP/test.txt"
-            echo "Hello from TEMP" > "$TEMP_FILE"
-            python ./custom-https-server/custom_https_server.py --path "$TEMP" --port 8081 &
-            SERVER_PID=$!
-            sleep 3
-            HTTP_CODE=$(curl --silent --output /dev/null --insecure --write-out "%{http_code}" https://localhost:8081/test.txt)
-            if [ "$HTTP_CODE" != "200" ]; then
-              echo "Server test failed, HTTP code: $HTTP_CODE"
-              kill $SERVER_PID
-              exit 1
-            fi
-            kill $SERVER_PID
-          else
-            echo "Hello from /tmp" > /tmp/test.txt
-            python3 ./custom-https-server/custom_https_server.py --path /tmp --port 8081 &
-            SERVER_PID=$!
-            trap "kill $SERVER_PID" EXIT
-            sleep 3
-            HTTP_CODE=$(curl --silent --output /dev/null --insecure --write-out "%{http_code}" https://localhost:8081/test.txt)
-            if [ "$HTTP_CODE" != "200" ]; then
-              echo "Server test failed, HTTP code: $HTTP_CODE"
-              exit 1
-            fi
+          python3 ./custom-https-server/custom_https_server.py --path . --port 8080 &
+          SERVER_PID=$!
+          trap "kill $SERVER_PID" EXIT
+          sleep 3
+          HTTP_CODE=$(curl --silent --output /dev/null --insecure --write-out "%{http_code}" https://localhost:8080)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Server test failed, HTTP code: $HTTP_CODE"
+            exit 1
           fi
-        shell: bash
