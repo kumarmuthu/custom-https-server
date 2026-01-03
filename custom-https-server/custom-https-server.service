@@ -1,0 +1,20 @@
+[Unit]
+Description=Custom HTTP/HTTPS Server
+After=network.target local-fs.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=/etc/custom-https-server.conf
+ExecStart=@PYTHON_BIN@ /opt/custom_https_server/custom_https_server.py \
+  --path=${SERVE_PATH} \
+  --port=${SERVE_PORT} \
+  --mode${MODE} \
+  --user=${AUTH_USERNAME} \
+  --pass=${AUTH_PASSWORD}
+WorkingDirectory=/opt/custom_https_server
+Restart=on-failure
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target
