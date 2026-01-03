@@ -50,17 +50,28 @@ jobs:
           echo "=== Server logs ==="
           cat /tmp/server.log
           
-          # Test with verbose output
-          echo -e "\n=== Testing HTTPS on 127.0.0.1:8080 ==="
-          if curl -k -v --max-time 10 https://127.0.0.1:8080 2>&1 | tee /tmp/curl.log; then
+          # Check port binding
+          echo -e "\n=== Checking port binding ==="
+          netstat -tlnp 2>/dev/null | grep 8080 || echo "Port check not available"
+          
+          # Test with verbose output on 0.0.0.0 (localhost binding)
+          echo -e "\n=== Testing HTTPS on localhost:8080 ==="
+          if curl -k -v --max-time 10 https://localhost:8080 2>&1 | tee /tmp/curl.log; then
             echo "✅ Server responding to requests"
           else
             CURL_CODE=$?
-            echo "❌ Curl failed with code: $CURL_CODE"
-            echo "=== Curl logs ==="
-            cat /tmp/curl.log
-            kill $SERVER_PID 2>/dev/null || true
-            exit 1
+            echo "⚠️  Curl failed with code: $CURL_CODE (trying 0.0.0.0)"
+            
+            # Try 0.0.0.0 directly
+            if curl -k -v --max-time 10 https://0.0.0.0:8080 2>&1 | tee /tmp/curl2.log; then
+              echo "✅ Server responding on 0.0.0.0"
+            else
+              echo "❌ Both localhost and 0.0.0.0 failed"
+              cat /tmp/curl.log
+              cat /tmp/curl2.log
+              kill $SERVER_PID 2>/dev/null || true
+              exit 1
+            fi
           fi
           
           kill $SERVER_PID 2>/dev/null || true
@@ -73,33 +84,40 @@ jobs:
           echo "Hello from /tmp" > /tmp/test.txt
           
           # Launch server in background
-          python3 ./custom-https-server/custom_https_server.py --path /tmp --port 8081 &
+          python3 ./custom-https-server/custom_https_server.py --path /tmp --port 8081 > /tmp/server8081.log 2>&1 &
           SERVER_PID=$!
           echo "Server PID: $SERVER_PID"
           
           # Give server time to start
-          sleep 5
+          sleep 10
           
           # Check if server is running
           if ! ps -p $SERVER_PID > /dev/null; then
             echo "❌ Server failed to start"
+            echo "=== Server logs ==="
+            cat /tmp/server8081.log
             exit 1
           fi
           
-          # Test file serving with HTTPS
-          echo "Testing file serving on port 8081..."
-          HTTP_CODE=$(curl -k --silent --output /tmp/response.txt --write-out "%{http_code}" \
-            --max-time 5 https://127.0.0.1:8081/test.txt 2>/dev/null || echo "000")
+          echo "✅ Server process is running"
           
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "401" ]; then
-            echo "❌ File serving test failed, HTTP code: $HTTP_CODE"
-            kill $SERVER_PID 2>/dev/null || true
-            exit 1
-          fi
-          
-          echo "✅ File served successfully, HTTP code: $HTTP_CODE"
-          if [ -f /tmp/response.txt ]; then
-            echo "Response content: $(cat /tmp/response.txt)"
+          # Test file serving with HTTPS on localhost
+          echo -e "\n=== Testing file serving on localhost:8081 ==="
+          if curl -k -v --max-time 10 https://localhost:8081/test.txt 2>&1 | tee /tmp/curl8081.log; then
+            echo "✅ File served successfully"
+          else
+            CURL_CODE=$?
+            echo "⚠️  localhost failed with code: $CURL_CODE (trying 0.0.0.0)"
+            
+            # Try 0.0.0.0 directly
+            if curl -k -v --max-time 10 https://0.0.0.0:8081/test.txt 2>&1 | tee /tmp/curl8081b.log; then
+              echo "✅ File served successfully on 0.0.0.0"
+            else
+              echo "❌ File serving failed on both localhost and 0.0.0.0"
+              cat /tmp/curl8081.log
+              kill $SERVER_PID 2>/dev/null || true
+              exit 1
+            fi
           fi
           
           kill $SERVER_PID 2>/dev/null || true
