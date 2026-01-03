@@ -54,11 +54,27 @@ jobs:
           echo "Starting server on port 8080..."
           python3 custom_https_server.py --path . --port 8080 > /tmp/server.log 2>&1 &
           SERVER_PID=$!
+          echo "Server PID: $SERVER_PID"
           
-          sleep 10
+          echo "Waiting 15 seconds for server startup..."
+          sleep 15
           
+          echo "Checking if server is running..."
+          if ps -p $SERVER_PID > /dev/null; then
+            echo "✅ Server process is running"
+          else
+            echo "❌ Server process died"
+            echo "=== Server logs ==="
+            cat /tmp/server.log
+            exit 1
+          fi
+          
+          echo "Testing HTTPS connection..."
           python3 ../test_https.py 8080
           EXIT_CODE=$?
+          
+          echo "=== Server logs ==="
+          cat /tmp/server.log
           
           kill $SERVER_PID 2>/dev/null || true
           exit $EXIT_CODE
@@ -68,11 +84,27 @@ jobs:
           echo "Starting server on port 8081..."
           python3 ./custom-https-server/custom_https_server.py --path /tmp --port 8081 > /tmp/server.log 2>&1 &
           SERVER_PID=$!
+          echo "Server PID: $SERVER_PID"
           
-          sleep 10
+          echo "Waiting 15 seconds for server startup..."
+          sleep 15
           
+          echo "Checking if server is running..."
+          if ps -p $SERVER_PID > /dev/null; then
+            echo "✅ Server process is running"
+          else
+            echo "❌ Server process died"
+            echo "=== Server logs ==="
+            cat /tmp/server.log
+            exit 1
+          fi
+          
+          echo "Testing HTTPS connection..."
           python3 test_https.py 8081
           EXIT_CODE=$?
+          
+          echo "=== Server logs ==="
+          cat /tmp/server.log
           
           kill $SERVER_PID 2>/dev/null || true
           exit $EXIT_CODE
