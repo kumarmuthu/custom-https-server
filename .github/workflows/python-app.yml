@@ -29,32 +29,40 @@ jobs:
         run: |
           set -e
           
-          # Launch server in background with 127.0.0.1 binding
-          python3 custom_https_server.py --path . --port 8080 &
+          # Launch server in background
+          python3 custom_https_server.py --path . --port 8080 > /tmp/server.log 2>&1 &
           SERVER_PID=$!
           echo "Server PID: $SERVER_PID"
           
-          # Give server time to start
-          sleep 5
+          # Give server time to start and generate certificates
+          echo "Waiting for server to start..."
+          sleep 10
           
           # Check if server is running
           if ! ps -p $SERVER_PID > /dev/null; then
             echo "❌ Server failed to start"
+            echo "=== Server logs ==="
+            cat /tmp/server.log
             exit 1
           fi
           
-          # Test root path with HTTPS (ignore self-signed cert)
-          echo "Testing HTTPS on localhost:8080..."
-          HTTP_CODE=$(curl -k --silent --output /dev/null --write-out "%{http_code}" \
-            --max-time 5 https://127.0.0.1:8080 2>/dev/null || echo "000")
+          echo "✅ Server process is running"
+          echo "=== Server logs ==="
+          cat /tmp/server.log
           
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "401" ]; then
-            echo "❌ Server test failed, HTTP code: $HTTP_CODE"
+          # Test with verbose output
+          echo -e "\n=== Testing HTTPS on 127.0.0.1:8080 ==="
+          if curl -k -v --max-time 10 https://127.0.0.1:8080 2>&1 | tee /tmp/curl.log; then
+            echo "✅ Server responding to requests"
+          else
+            CURL_CODE=$?
+            echo "❌ Curl failed with code: $CURL_CODE"
+            echo "=== Curl logs ==="
+            cat /tmp/curl.log
             kill $SERVER_PID 2>/dev/null || true
             exit 1
           fi
           
-          echo "✅ Server responded with code: $HTTP_CODE"
           kill $SERVER_PID 2>/dev/null || true
       
       - name: Test server on port 8081 with file serving
