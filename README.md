@@ -69,6 +69,7 @@ custom-https-server/
 │   ├── uninstall.sh                      # Uninstaller script
 │   └── update-service.sh                 # Update macOS plist / Linux systemd runtime args
 ├── .ignore                               # Ignore file
+├── HTTPS_Server.jpeg                     # Screenshot / demo image
 ├── LICENSE                               # MIT License
 └── README.md                             # Project documentation
 ```
@@ -567,6 +568,14 @@ This guarantees:
 |-------|---------|--------|--------|---------------|
 | read  | Minimal | ❌      | ❌      | ✅             |
 | write | Full UI | ✅      | ✅      | ⚠️            |
+
+---
+
+### 📸 Screenshots
+
+The following image gives you a glimpse of the application's interface:
+
+- **HTTPS Web Page**: ![HTTPS Web Page](HTTPS_Server.jpeg)
 
 ---
 
