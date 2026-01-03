@@ -60,7 +60,7 @@ jobs:
         working-directory: ./custom-https-server
         run: |
           echo "Launching server with --path . on port 8080"
-          python3 custom_https_server.py --path . --port 8080 > /tmp/server.log 2>&1 &
+          python3 custom_https_server.py --path . --port 8080 --bind 127.0.0.1 --mode read --user admin --pass password > /tmp/server.log 2>&1 &
           SERVER_PID=$!
           sleep 15
           echo "Testing HTTPS connection on port 8080..."
@@ -74,11 +74,10 @@ jobs:
           echo "Creating dummy file in /tmp"
           echo "Hello from /tmp" > /tmp/test.txt
           echo "Launching server with --path /tmp on port 8081"
-          python3 custom_https_server.py --path /tmp --port 8081 > /tmp/server.log 2>&1 &
+          python3 custom_https_server.py --path /tmp --port 8081 --bind 127.0.0.1 --mode read --user admin --pass password > /tmp/server.log 2>&1 &
           SERVER_PID=$!
           sleep 15
           echo "Testing HTTPS connection on port 8081..."
           python3 ../test_https.py 8081
           kill $SERVER_PID 2>/dev/null || true
         shell: bash
-        
