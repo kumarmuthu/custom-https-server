@@ -19,9 +19,34 @@ jobs:
         with:
           python-version: '3.x'
       
-      - name: Install dependencies
+      - name: Create test script
         run: |
-          python3 -m pip install --upgrade pip
+          echo '#!/usr/bin/env python3' > test_https.py
+          echo 'import socket' >> test_https.py
+          echo 'import ssl' >> test_https.py
+          echo 'import sys' >> test_https.py
+          echo '' >> test_https.py
+          echo 'def test_server(port):' >> test_https.py
+          echo '    try:' >> test_https.py
+          echo '        context = ssl.create_default_context()' >> test_https.py
+          echo '        context.check_hostname = False' >> test_https.py
+          echo '        context.verify_mode = ssl.CERT_NONE' >> test_https.py
+          echo '        ' >> test_https.py
+          echo '        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)' >> test_https.py
+          echo '        sock.settimeout(5)' >> test_https.py
+          echo '        ' >> test_https.py
+          echo '        with context.wrap_socket(sock, server_hostname="localhost") as ssock:' >> test_https.py
+          echo '            ssock.connect(("127.0.0.1", port))' >> test_https.py
+          echo '            print(f"✅ Connected to server on port {port}")' >> test_https.py
+          echo '            return True' >> test_https.py
+          echo '    except Exception as e:' >> test_https.py
+          echo '        print(f"❌ Failed to connect to port {port}: {e}")' >> test_https.py
+          echo '        return False' >> test_https.py
+          echo '' >> test_https.py
+          echo 'if __name__ == "__main__":' >> test_https.py
+          echo '    port = int(sys.argv[1])' >> test_https.py
+          echo '    success = test_server(port)' >> test_https.py
+          echo '    sys.exit(0 if success else 1)' >> test_https.py
       
       - name: Test HTTPS server on port 8080
         working-directory: ./custom-https-server
@@ -32,30 +57,11 @@ jobs:
           
           sleep 10
           
-          # Test connection
-          python3 << 'EOF'
-import socket
-import ssl
-import sys
-
-try:
-    context = ssl.create_default_context()
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
-    
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(5)
-    
-    with context.wrap_socket(sock, server_hostname='localhost') as ssock:
-        ssock.connect(('127.0.0.1', 8080))
-        print("✅ Connected to server on port 8080")
-        sys.exit(0)
-except Exception as e:
-    print(f"❌ Failed to connect: {e}")
-    sys.exit(1)
-EOF
+          python3 ../test_https.py 8080
+          EXIT_CODE=$?
           
           kill $SERVER_PID 2>/dev/null || true
+          exit $EXIT_CODE
       
       - name: Test HTTPS server on port 8081
         run: |
@@ -65,27 +71,8 @@ EOF
           
           sleep 10
           
-          # Test connection
-          python3 << 'EOF'
-import socket
-import ssl
-import sys
-
-try:
-    context = ssl.create_default_context()
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
-    
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(5)
-    
-    with context.wrap_socket(sock, server_hostname='localhost') as ssock:
-        ssock.connect(('127.0.0.1', 8081))
-        print("✅ Connected to server on port 8081")
-        sys.exit(0)
-except Exception as e:
-    print(f"❌ Failed to connect: {e}")
-    sys.exit(1)
-EOF
+          python3 test_https.py 8081
+          EXIT_CODE=$?
           
           kill $SERVER_PID 2>/dev/null || true
+          exit $EXIT_CODE
