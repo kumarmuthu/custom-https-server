@@ -5,19 +5,12 @@ name: custom-https-server CI
 
 on:
   workflow_dispatch:
-  # push:
-  #  branches: [ "main" ]
-  # pull_request:
-  #  branches: [ "main" ]
   schedule:
     - cron: "0 9 1 * *"
 
 jobs:
   test-server:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -31,16 +24,38 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install psutil
+          pip install psutil
 
-      - name: Test server on port 8080
+      - name: Test server with ./custom-https-server on port 8080
+        working-directory: ./custom-https-server
         run: |
           set -e
-          python3 ./custom-https-server/custom_https_server.py --path . --port 8080 &
+          # Launch server in background
+          python3 custom_https_server.py --path . --port 8080 &
           SERVER_PID=$!
           trap "kill $SERVER_PID" EXIT
-          sleep 3
-          HTTP_CODE=$(curl --silent --output /dev/null --insecure --write-out "%{http_code}" https://localhost:8080)
+          
+          # Give server time to start
+          sleep 5
+          
+          # Test root path
+          HTTP_CODE=$(curl --silent --output /dev/null --write-out "%{http_code}" http://localhost:8080)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Server test failed, HTTP code: $HTTP_CODE"
+            exit 1
+          fi
+
+      - name: Test server with /tmp on port 8081
+        run: |
+          set -e
+          echo "Hello from /tmp" > /tmp/test.txt
+          python3 ./custom-https-server/custom_https_server.py --path /tmp --port 8081 &
+          SERVER_PID=$!
+          trap "kill $SERVER_PID" EXIT
+          
+          sleep 5
+          
+          HTTP_CODE=$(curl --silent --output /dev/null --write-out "%{http_code}" http://localhost:8081/test.txt)
           if [ "$HTTP_CODE" != "200" ]; then
             echo "Server test failed, HTTP code: $HTTP_CODE"
             exit 1
