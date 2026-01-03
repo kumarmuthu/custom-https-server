@@ -83,6 +83,12 @@ git clone https://github.com/kumarmuthu/custom-https-server.git
 cd custom-https-server/custom-https-server
 chmod +x install.sh uninstall.sh update-service.sh
 sudo ./install.sh
+
+# Install with virtualenv
+sudo ./install.sh -venv true
+
+# OR install using system python
+sudo ./install.sh -venv false
 ```
 
 ### Install with custom path and port
