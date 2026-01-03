@@ -1,0 +1,78 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: custom-https-server CI
+
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [ "main" ]
+  # pull_request:
+  #   branches: [ "main" ]
+  schedule:
+    - cron: "0 9 1 * *"
+
+jobs:
+  test-server:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Test server with ./custom-https-server on port 8080
+        run: |
+          set -e
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            python ./custom-https-server/custom_https_server.py --path . --port 8080 &
+            $PID=$!
+            Start-Sleep -Seconds 3
+            $HTTP_CODE=$(curl --silent --output $null --insecure --write-out "%{http_code}" https://localhost:8080)
+            if ($HTTP_CODE -ne 200) { exit 1 }
+            Stop-Process -Id $PID
+          else
+            python3 ./custom-https-server/custom_https_server.py --path . --port 8080 &
+            SERVER_PID=$!
+            trap "kill $SERVER_PID" EXIT
+            sleep 3
+            HTTP_CODE=$(curl --silent --output /dev/null --insecure --write-out "%{http_code}" https://localhost:8080)
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "Server test failed, HTTP code: $HTTP_CODE"
+              exit 1
+            fi
+          fi
+        shell: bash
+
+      - name: Test server with temp folder on port 8081
+        run: |
+          set -e
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            $TEMP_FILE="$env:TEMP\test.txt"
+            echo "Hello from TEMP" > $TEMP_FILE
+            python ./custom-https-server/custom_https_server.py --path $env:TEMP --port 8081 &
+            $PID=$!
+            Start-Sleep -Seconds 3
+            $HTTP_CODE=$(curl --silent --output $null --insecure --write-out "%{http_code}" https://localhost:8081/test.txt)
+            if ($HTTP_CODE -ne 200) { exit 1 }
+            Stop-Process -Id $PID
+          else
+            echo "Hello from /tmp" > /tmp/test.txt
+            python3 ./custom-https-server/custom_https_server.py --path /tmp --port 8081 &
+            SERVER_PID=$!
+            trap "kill $SERVER_PID" EXIT
+            sleep 3
+            HTTP_CODE=$(curl --silent --output /dev/null --insecure --write-out "%{http_code}" https://localhost:8081/test.txt)
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "Server test failed, HTTP code: $HTTP_CODE"
+              exit 1
+            fi
+          fi
+        shell: bash
