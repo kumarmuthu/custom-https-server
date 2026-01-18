@@ -179,8 +179,9 @@ sudo systemctl restart custom-https-server
 
 ```bash
 sudo systemctl status custom-https-server
-sudo lsof -i :80    # Or your configured HTTP port
-sudo lsof -i :443   # Or your configured HTTPS port
+sudo lsof -i :80    # Or HTTP / HTTPS port from config
+sudo lsof -i :443   # Or HTTP / HTTPS port from config
+sudo lsof -i :8080  # Or HTTP / HTTPS port from config
 ```
 
 ---
@@ -190,31 +191,85 @@ sudo lsof -i :443   # Or your configured HTTPS port
 The server **auto-creates logs** in the user directory (`LOG_DIR`) if missing. Example:
 
 ```bash
-tail -f /Users/<username>/custom_https_server_log/logs/custom_https_server.log
-tail -f /Users/<username>/custom_https_server_log/logs/custom_https_server.err
+tail -f /home/<username>/custom_https_server_log/logs/custom_https_server.log
+tail -f /home/<username>/custom_https_server_log/logs/custom_https_server.err
 ```
 
 > Replace `<username>` with your actual user.
 
 ---
 
-### 🔓 Allow Port in Firewall
+### 🔓 Allow Port in Firewall (Linux)
 
-#### Rocky Linux
+The firewall configuration depends on your Linux distribution.
+
+---
+
+#### 🟥 Rocky / Alma / CentOS / RHEL (firewalld)
 
 ```bash
 sudo firewall-cmd --permanent --add-port=80/tcp
 sudo firewall-cmd --permanent --add-port=443/tcp
+sudo firewall-cmd --permanent --add-port=8080/tcp
 sudo firewall-cmd --reload
 ```
 
-#### Ubuntu
+Verify:
+
+```bash
+sudo firewall-cmd --list-ports
+```
+
+---
+
+#### 🟧 Ubuntu / Debian (UFW – recommended)
 
 ```bash
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
+sudo ufw allow 8080/tcp
 sudo ufw reload
 ```
+
+Verify:
+
+```bash
+sudo ufw status
+```
+
+---
+
+#### 🟦 Generic Linux (iptables – immediate but NOT persistent)
+
+```bash
+sudo iptables -I INPUT 1 -p tcp --dport 8080 -m conntrack --ctstate NEW -j ACCEPT
+```
+
+Verify:
+
+```bash
+sudo iptables -L INPUT -n --line-numbers
+```
+
+⚠️ **Important:**
+This rule will be **lost after reboot** unless persistence is enabled.
+
+To make it persistent on Ubuntu/Debian:
+
+```bash
+sudo apt install iptables-persistent
+sudo netfilter-persistent save
+sudo netfilter-persistent reload
+```
+
+---
+
+### 📝 Notes
+
+* Use **UFW** on Ubuntu whenever possible
+* Use **firewalld** on RHEL-based systems
+* Use raw **iptables** only for testing or minimal systems
+* If you change `SERVE_PORT`, update the firewall rule accordingly
 
 ---
 
