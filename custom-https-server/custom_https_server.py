@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-__version__ = "2026.01.03.01"
+__version__ = "2026.02.17.01"
 __author__ = "Muthukumar Subramanian"
 
 """
@@ -40,6 +40,9 @@ Changelog:
                   macOS bind-test and dynamic IP fallback
                   HTTP + HTTPS dual-protocol support with redirection
                   Read / Write access mode support
+- 2026.02.17.01 : Security & MIME hardening update
+                  Improved guess_type() logic
+                  Updated SSL handling for Python >= 3.13
 """
 
 import os
@@ -174,15 +177,24 @@ mimetypes.init()
 for ext, mime in {
     # Text formats
     '.log': 'text/plain', '.txt': 'text/plain', '.tap': 'text/plain', '.md': 'text/plain',
-    '.conf': 'text/plain', '.ini': 'text/plain', '.env': 'text/plain',
+    '.conf': 'text/plain', '.ini': 'text/plain', '.env': 'text/plain', '.err': 'text/plain',
+    '.key': 'text/plain', '.enc': 'text/plain', '.pmem': 'text/plain', '.trace': 'text/plain',
+    '.cfg': 'text/plain', '.dat': 'text/plain',
+
+    # Extra useful text/dev formats (added)
+    '.out': 'text/plain', '.bak': 'text/plain', '.backup': 'text/plain',
+    '.yml': 'text/yaml', '.yaml': 'text/yaml',
+    '.toml': 'text/plain', '.csv': 'text/csv', '.sql': 'text/plain',
 
     # Code & markup
-    '.html': 'text/html', '.xml': 'application/xml', '.json': 'application/json', '.js': 'application/javascript',
-    '.css': 'text/css', '.py': 'text/x-python', '.sh': 'text/plain',
+    '.html': 'text/html', '.xml': 'application/xml', '.json': 'application/json',
+    '.js': 'application/javascript', '.css': 'text/css',
+    '.py': 'text/x-python', '.sh': 'text/plain',
 
     # Images
-    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif',
-    '.svg': 'image/svg+xml', '.webp': 'image/webp', '.ico': 'image/x-icon',
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif', '.svg': 'image/svg+xml',
+    '.webp': 'image/webp', '.ico': 'image/x-icon',
 
     # Docs
     '.pdf': 'application/pdf', '.doc': 'application/msword',
@@ -193,8 +205,21 @@ for ext, mime in {
     '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 
     # Archives
-    '.zip': 'application/zip', '.tar': 'application/x-tar', '.gz': 'application/gzip',
-    '.bz2': 'application/x-bzip2', '.7z': 'application/x-7z-compressed'
+    '.zip': 'application/zip', '.tar': 'application/x-tar',
+    '.gz': 'application/gzip', '.bz2': 'application/x-bzip2',
+    '.7z': 'application/x-7z-compressed',
+
+    # Binary / dump safety (added – important for server)
+    '.bin': 'application/octet-stream',
+    '.img': 'application/octet-stream',
+    '.iso': 'application/octet-stream',
+    '.dump': 'application/octet-stream',
+    '.core': 'application/octet-stream',
+
+    # TLS / cert files (useful since you run HTTPS)
+    '.pem': 'application/x-pem-file',
+    '.crt': 'application/x-x509-ca-cert',
+    '.cer': 'application/pkix-cert',
 }.items():
     mimetypes.add_type(mime, ext, strict=False)
 
@@ -285,18 +310,20 @@ class CustomHandler(SimpleHTTPRequestHandler):
 
     def guess_type(self, path):
         # ---- allowlist of no-extension text files ----
-        test_no_ext = {"README", "LICENSE", "Makefile"}
+        test_no_ext = {"README", "LICENSE", "MAKEFILE"}
 
         # ---- allowlist of text extensions ----
         text_ext = {
-            ".sh", ".py", ".log", ".md", ".conf", ".ini", ".env", ".txt", ".service", ".plist"
+            ".sh", ".py", ".log", ".md", ".conf",
+            ".ini", ".env", ".txt", ".service", ".plist"
         }
 
         name = os.path.basename(path)
+        name_upper = name.upper()
         _, ext = os.path.splitext(name.lower())
 
-        # 1) Explicit no-extension text files
-        if "." not in name and name in test_no_ext:
+        # 1) Explicit no-extension text files (case-safe)
+        if "." not in name and name_upper in test_no_ext:
             return "text/plain; charset=utf-8"
 
         # 2) Force inline view for known text extensions
@@ -305,7 +332,16 @@ class CustomHandler(SimpleHTTPRequestHandler):
 
         # 3) Let system decide for everything else
         ctype = super().guess_type(path)
-        return ctype or "application/octet-stream"
+
+        # 4) Ensure safe fallback
+        if not ctype:
+            return "application/octet-stream"
+
+        # 5) Ensure charset for text types
+        if ctype.startswith("text/") and "charset" not in ctype:
+            return f"{ctype}; charset=utf-8"
+
+        return ctype
 
     def do_AUTHHEAD(self):
         """Send 401 Unauthorized header to prompt for login."""
@@ -1141,12 +1177,19 @@ class DualProtocolServer:
         )
         self.https_server.daemon_threads = True
 
-        self.https_server.socket = ssl.wrap_socket(
-            self.https_server.socket,
-            keyfile=str(self.key_file),
-            certfile=str(self.cert_file),
-            server_side=True,
-        )
+        try:
+            # Python >=3.13
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            context.load_cert_chain(certfile=self.cert_file, keyfile=self.key_file)
+            self.https_server.socket = context.wrap_socket(self.https_server.socket, server_side=True)
+        except AttributeError:
+            # fallback for old Python
+            self.https_server.socket = ssl.wrap_socket(
+                self.https_server.socket,
+                keyfile=self.key_file,
+                certfile=self.cert_file,
+                server_side=True
+            )
 
         print(f"[HTTPS] Serving on {self.host}:{self.https_port}", flush=True)
         self.https_server.serve_forever()
