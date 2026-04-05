@@ -9,15 +9,14 @@
 ![GitHub Stars](https://img.shields.io/github/stars/kumarmuthu/custom-https-server?style=for-the-badge)
 ![GitHub Contributors](https://img.shields.io/github/contributors/kumarmuthu/custom-https-server?style=for-the-badge)
 
-A lightweight, Python-based **Custom HTTP/HTTPS Server** designed to run as a **Linux systemd service** or a **macOS `launchd` agent**. It is ideal for securely serving static files, logs, test results, build artifacts, or
-internal documentation.
+A lightweight, Python-based **Custom HTTP/HTTPS Server** designed to run as a **Linux systemd service** or a **macOS `launchd` agent**. It is ideal for securely serving static files, logs, test results, build artifacts, or internal documentation.
 
 This version includes:
 
 * Native **HTTPS support** using a configurable SSL certificate and key
 * Optional **HTTP → HTTPS redirection**
 * Dynamic configuration loading from `/usr/local/etc/custom-https-server.conf` with local fallback
-* Automatic creation and management of log files in the user’s home directory
+* Automatic creation and management of log files in the user's home directory
 * OS-specific defaults optimized for **Linux** and **macOS**
 * Threaded **HTTP and HTTPS** servers with optional authentication support
 * **Read and Write access modes** to control UI and file operations:
@@ -97,6 +96,19 @@ sudo ./install.sh -venv false
 sudo ./install.sh -path /root -port 8080
 ```
 
+### Install with a custom user home directory
+
+Use `-custom_home` when the installer cannot automatically resolve the correct home directory — for example, when
+running under `sudo` with a non-standard user or in environments where `$HOME` is overridden.
+
+```bash
+sudo ./install.sh -path /root -port 8080 -custom_home /home/myuser
+```
+
+* `-custom_home` → Overrides the auto-detected home directory used for log file placement
+* If the path provided does not exist, the installer falls back to automatic detection and logs a warning
+* Logs will be created under `<custom_home>/custom_https_server_log/logs/`
+
 > 🛡️ **Note:** `sudo` is required for system paths like `/opt` or `/usr/local`.
 
 ---
@@ -106,11 +118,13 @@ sudo ./install.sh -path /root -port 8080
 Edit the config file:
 
 Linux:
+
 ```bash
 sudo vi /etc/custom-https-server.conf
 ```
 
 Mac:
+
 ```bash
 sudo vi /usr/local/etc/custom-https-server.conf
 ```
@@ -160,12 +174,18 @@ CFG_ERR_FILE=dynamic_err_file
 
 * `CFG_LOG_*`
   → Resolved dynamically at runtime
-  → Logs are auto-created if paths don’t exist
+  → Logs are auto-created if paths don't exist
 
 > Logs are auto-created if missing (`LOG_DIR`, `LOG_FILE`, `ERR_FILE`) and **stdout/stderr are displayed in terminal**
 > when running interactively.
 
 ---
+
+Once installed, verify the service is running:
+
+```bash
+sudo systemctl status custom-https-server
+```
 
 Restart to apply changes:
 
@@ -301,6 +321,19 @@ sudo ./install.sh -path /Users/<username> -port 8080
 * `-path` → Directory to serve
 * `-port` → HTTP/HTTPS port
 
+### Install with a custom user home directory
+
+Use `-custom_home` when the installer cannot resolve the correct home directory — for example, when the macOS user home
+is in a non-standard location or `dscl` lookup returns an unexpected path.
+
+```bash
+sudo ./install.sh -path /Users/<username> -port 8080 -custom_home /Users/<username>
+```
+
+* `-custom_home` → Overrides the auto-detected home directory used for log file placement
+* If the path provided does not exist, the installer falls back to automatic detection and logs a warning
+* Logs will be created under `<custom_home>/custom_https_server_log/logs/`
+
 The installer automatically sets up a `launchd` agent.
 
 ---
@@ -373,6 +406,26 @@ python3 custom_https_server.py \
     * Debugging
     * Temporary/manual runs
 * **Not used by systemd or launchd**
+
+---
+
+## ⚙️ Installer Arguments Reference
+
+| Argument       | Description                                             | Example                     |
+|----------------|---------------------------------------------------------|-----------------------------|
+| `-path`        | Directory to serve                                      | `-path /var/www`            |
+| `-port`        | HTTP/HTTPS port                                         | `-port 8080`                |
+| `-mode`        | Server mode (`read` or `write`)                         | `-mode read`                |
+| `-user`        | Auth username                                           | `-user admin`               |
+| `-pass`        | Auth password                                           | `-pass secret`              |
+| `-venv`        | Use virtual environment (`true` or `false`)             | `-venv true`                |
+| `-custom_home` | Override auto-detected home directory for log placement | `-custom_home /home/myuser` |
+
+> **`-custom_home` details:**
+> The installer auto-detects the real user's home directory to determine where logs are stored.
+> If this detection fails (e.g., non-standard `sudo` environments, unusual `dscl` output on macOS,
+> or a custom home directory outside `/home`), supply `-custom_home` to set the path explicitly.
+> The provided path must already exist; otherwise the installer falls back to auto-detection with a warning.
 
 ---
 
