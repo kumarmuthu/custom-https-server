@@ -1,6 +1,6 @@
 #!/bin/bash
 # Name    : install.sh
-# Version : 2026.01.03.01
+# Version : 2026.04.05.01
 # Author  : Muthukumar Subramanian
 # OS      : Linux / macOS
 # Purpose : Install and configure custom-https-server as a systemd service or launchd agent
@@ -20,6 +20,7 @@ DEFAULT_USERNAME=""
 DEFAULT_PASSWORD=""
 FINAL_PYTHON=""
 USE_VENV="false"
+CUSTOM_USER_HOME=""
 
 # -------------------------------
 # Detect OS
@@ -63,6 +64,10 @@ while [[ $# -gt 0 ]]; do
       esac
       shift 2
       ;;
+    -custom_home)
+      CUSTOM_USER_HOME="$2"
+      shift 2
+      ;;
     *)
       echo "❌ Unknown argument: $1"
       exit 1
@@ -92,6 +97,20 @@ else
     else
         # macOS fallback
         USER_HOME="$(dscl . -read /Users/"$REAL_USER" NFSHomeDirectory | awk '{print $2}')"
+    fi
+fi
+
+# -------------------------------
+# Get real user's home directory
+# -------------------------------
+if [[ -n "$CUSTOM_USER_HOME" ]]; then
+    # User provided a custom home path, validate it
+    if [[ -d "$CUSTOM_USER_HOME" ]]; then
+        USER_HOME="$CUSTOM_USER_HOME"
+        HOME="$CUSTOM_USER_HOME"
+        echo "✅ Using custom home directory: $USER_HOME"
+    else
+        echo "⚠️ Custom home path invalid: $CUSTOM_USER_HOME — falling back to default detection"
     fi
 fi
 
