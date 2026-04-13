@@ -81,13 +81,30 @@ custom-https-server/
 git clone https://github.com/kumarmuthu/custom-https-server.git
 cd custom-https-server/custom-https-server
 chmod +x install.sh uninstall.sh update-service.sh
+
+# Basic install (auto config)
 sudo ./install.sh
 
-# Install with virtualenv
+# Install with virtualenv (recommended)
 sudo ./install.sh -venv true
 
-# OR install using system python
+# Install using system Python (no venv)
 sudo ./install.sh -venv false
+
+# Install with custom path and port
+sudo ./install.sh -path /data -port 8080
+
+# Install with authentication
+sudo ./install.sh -user admin -pass secret
+
+# Install with custom home directory (for logs)
+sudo ./install.sh -custom_home /home/myuser
+
+# Install with venv + custom home (recommended for isolation)
+sudo ./install.sh -venv true -custom_home /home/myuser
+
+# Full example (all options)
+sudo ./install.sh -path /data -port 8443 -mode https -user admin -pass secret -venv true -custom_home /home/myuser
 ```
 
 ### Install with custom path and port
