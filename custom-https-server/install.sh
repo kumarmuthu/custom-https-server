@@ -30,6 +30,55 @@ OS_NAME="$(uname)"
 # -------------------------------
 # Parse CLI args (macOS/Linux)
 # -------------------------------
+
+show_help() {
+cat <<EOF
+Custom HTTPS Server Installer
+
+Usage:
+  ./install.sh [options]
+
+Options:
+  -path <dir>          Path to serve files from
+  -port <port>         Port number (e.g., 8080)
+  -mode <mode>         Server mode (e.g., http/https)
+  -user <username>     Authentication username
+  -pass <password>     Authentication password
+  -venv <true|false>   Use Python virtual environment (default: false)
+  -custom_home <path>  Override detected user home directory
+
+Other:
+  -h, --help           Show this help message and exit
+
+Examples:
+
+  # Basic install (auto config)
+  sudo ./install.sh
+
+  # Install with custom path and port
+  sudo ./install.sh -path /data -port 8080
+
+  # Install with authentication
+  sudo ./install.sh -user admin -pass secret
+
+  # Install with virtual environment
+  sudo ./install.sh -venv true
+
+  # Install using system Python (no venv)
+  sudo ./install.sh -venv false
+
+  # Install with custom home directory
+  sudo ./install.sh -custom_home /home/myuser
+
+  # Install with venv + custom home (recommended for isolation)
+  sudo ./install.sh -venv true -custom_home /home/myuser
+
+  # Full example (all options)
+  sudo ./install.sh -path /data -port 8443 -mode https -user admin -pass secret -venv true -custom_home /home/myuser
+
+EOF
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -path)
@@ -67,6 +116,10 @@ while [[ $# -gt 0 ]]; do
     -custom_home)
       CUSTOM_USER_HOME="$2"
       shift 2
+      ;;
+    -h|--help)
+      show_help
+      exit 0
       ;;
     *)
       echo "❌ Unknown argument: $1"
