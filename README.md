@@ -9,7 +9,9 @@
 ![GitHub Stars](https://img.shields.io/github/stars/kumarmuthu/custom-https-server?style=for-the-badge)
 ![GitHub Contributors](https://img.shields.io/github/contributors/kumarmuthu/custom-https-server?style=for-the-badge)
 
-A lightweight, Python-based **Custom HTTP/HTTPS Server** designed to run as a **Linux systemd service** or a **macOS `launchd` agent**. It is ideal for securely serving static files, logs, test results, build artifacts, or internal documentation.
+A lightweight, Python-based **Custom HTTP/HTTPS Server** designed to run as a **Linux systemd service** or a
+**macOS `launchd` agent**. It is ideal for securely serving static files, logs, test results, build artifacts, or
+internal documentation.
 
 This version includes:
 
@@ -276,7 +278,7 @@ sudo ufw status
 
 ---
 
-#### 🟦 Generic Linux (iptables – immediate but NOT persistent)
+### 🟦 Generic Linux (iptables – immediate but NOT persistent)
 
 ```bash
 sudo iptables -I INPUT 1 -p tcp --dport 8080 -m conntrack --ctstate NEW -j ACCEPT
@@ -291,7 +293,24 @@ sudo iptables -L INPUT -n --line-numbers
 ⚠️ **Important:**
 This rule will be **lost after reboot** unless persistence is enabled.
 
-To make it persistent on Ubuntu/Debian:
+---
+
+#### 🟥 RHEL / Rocky / Alma / CentOS (iptables persistence)
+
+```bash
+sudo yum install -y iptables-services
+sudo systemctl enable iptables
+sudo systemctl start iptables
+sudo service iptables save
+sudo systemctl restart iptables
+```
+
+> 📁 Rules are stored in:
+> `/etc/sysconfig/iptables`
+
+---
+
+#### 🟧 Ubuntu / Debian (iptables persistence)
 
 ```bash
 sudo apt install iptables-persistent
