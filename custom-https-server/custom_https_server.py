@@ -4,6 +4,16 @@ __version__ = "2026.02.17.01"
 __author__ = "Muthukumar Subramanian"
 
 """
+Copyright (c) 2026 Muthukumar Subramanian
+All rights reserved.
+
+Permission is granted to use this software for personal,
+educational and internal business purposes only.
+
+Modification, redistribution, sublicensing, resale,
+or the creation of derivative works is prohibited
+without explicit written permission from the author.
+
 Custom HTTP/HTTPS Server Service
 
 A lightweight Python-based HTTP/HTTPS file server with extended MIME support.
