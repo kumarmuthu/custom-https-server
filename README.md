@@ -731,7 +731,13 @@ The following image gives you a glimpse of the application's interface:
 
 ## License
 
-MIT License — free to use, modify, and distribute.
+This project is source-available.
+
+You may use the software,
+but modification and redistribution are prohibited
+without written permission.
+
+Copyright (c) 2026 Muthukumar Subramanian
 
 ---
 
