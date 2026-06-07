@@ -3,10 +3,9 @@ Copyright (c) 2026 Muthukumar Subramanian
 All rights reserved.
 
 Permission is granted to use this software for personal,
-educational, or internal business purposes only.
+educational, internal business, and production purposes only.
 
 You may NOT:
-
 - modify the source code
 - redistribute the software
 - publish copies
@@ -15,3 +14,6 @@ You may NOT:
 
 Distribution or modification without explicit written
 permission from the author is prohibited.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+THE AUTHOR IS NOT LIABLE FOR ANY DAMAGES ARISING FROM USE.
